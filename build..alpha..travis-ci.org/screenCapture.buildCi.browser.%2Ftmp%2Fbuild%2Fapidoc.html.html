@@ -1,0 +1,191 @@
+<html><head></head><body><div class="apidocDiv">
+<style>
+/*csslint
+*/
+.apidocDiv {
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.apidocDiv a[href] {
+    color: #33f;
+    font-weight: bold;
+    text-decoration: none;
+}
+.apidocDiv a[href]:hover {
+    text-decoration: underline;
+}
+.apidocCodeCommentSpan {
+    background: #bbf;
+    color: #000;
+    display: block;
+}
+.apidocCodeKeywordSpan {
+    color: #d00;
+    font-weight: bold;
+}
+.apidocCodePre {
+    background: #eef;
+    border: 1px solid;
+    color: #777;
+    padding: 5px;
+    white-space: pre-wrap;
+}
+.apidocFooterDiv {
+    margin-top: 20px;
+    text-align: center;
+}
+.apidocModuleLi {
+    margin-top: 10px;
+}
+.apidocSectionDiv {
+    border-top: 1px solid;
+    margin-top: 20px;
+}
+.apidocSignatureSpan {
+    color: #777;
+    font-weight: bold;
+}
+</style>
+<h1>api documentation for
+    <a>chai-things (v0.2.0)</a>
+</h1>
+<h4></h4>
+<div class="apidocSectionDiv"><a href="#apidoc.tableOfContents" id="apidoc.tableOfContents"><h1>table of contents</h1></a><ol>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.chai-things">module chai-things</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.chai-things.chai-things">
+            function <span class="apidocSignatureSpan"></span>chai-things
+            <span class="apidocSignatureSpan">(chai, utils)</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+</ol></div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.chai-things" id="apidoc.module.chai-things">module chai-things</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.chai-things.chai-things" id="apidoc.element.chai-things.chai-things">
+        function <span class="apidocSignatureSpan"></span>chai-things
+        <span class="apidocSignatureSpan">(chai, utils)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function chaiAsPromised(chai, utils) {
+  "use strict";
+
+  var Assertion = chai.Assertion,
+      assertionPrototype = Assertion.prototype,
+      expect = chai.expect,
+      containPropertyDesc = Object.getOwnPropertyDescriptor(assertionPrototype, 'contain');
+  Object.defineProperty(assertionPrototype, 'contains', containPropertyDesc);
+  Object.defineProperty(assertionPrototype, 'includes', containPropertyDesc);
+
+  // Handles the `something` chain property
+  function chainSomething() {
+    // `include` or `contains` should have been called before
+    if (!utils.flag(this, "contains"))
+      throw new Error("cannot use something without include or contains");
+    // Flag that this is a `something` chain
+    var lastSomething = this, newSomething = {};
+    while (utils.flag(lastSomething, "something"))
+      lastSomething = utils.flag(lastSomething, "something");
+    // Transfer all the flags to the new `something` and remove them from `this`
+    utils.transferFlags(this, newSomething, false);
+    for (var prop in this.__flags)
+      if (!/^(?:something|object|ssfi|message)$/.test(prop))
+        delete this.__flags[prop];
+
+    // Add the `newSomething` to the `lastSomething` in the chain.
+    utils.flag(lastSomething, "something", newSomething);
+    // Clear the `something` flag from `newSomething`.
+    utils.flag(newSomething, "something", false);
+  }
+
+  // Performs the `something()` assertion
+  function assertSomething() {
+    // Undo the flags set by the `something` chain property
+    var somethingFlags = utils.flag(this, "something");
+    utils.flag(this, "something", false);
+    if (somethingFlags)
+      utils.transferFlags(somethingFlags, this, true);
+
+    // The assertion's object for `something` should be array-like
+    var object = utils.flag(this, "object");
+    expect(object).to.have.property("length");
+    expect(object.length).to.be.a("number", "something object length");
+
+    // The object should contain something
+    this.assert(object.length &gt; 0,
+      "expected #{this} to contain something",
+      "expected #{this} not to contain something"
+    );
+  }
+
+  // Handles the `all` chain property
+  function chainAll() {
+    // Flag that this is an `all` chain
+    var lastAll = this, newAll = {};
+    while (utils.flag(lastAll, "all"))
+      lastAll = utils.flag(lastAll, "all");
+    // Transfer all the flags to the new `all` and remove them from `this`
+    utils.transferFlags(this, newAll, false);
+    for (var prop in this.__flags)
+      if (!/^(?:all|object|ssfi|message)$/.test(prop))
+        delete this.__flags[prop];
+
+    // Add the `newAll` to the `lastAll` in the chain.
+    utils.flag(lastAll, "all", newAll);
+    // Clear the `all` flag from `newAll`.
+    utils.flag(newAll, "all", false);
+  }
+
+  // Find all assertion methods
+  var methodNames = Object.getOwnPropertyNames(assertionPrototype)
+    .filter(function (propertyName) {
+      var property = Object.getOwnPropertyDescriptor(assertionPrototype, propertyName);
+      return typeof property.value  === "function";
+    });
+
+  // Override all assertion methods
+  methodNames.forEach(function (methodName) {
+
+    // Override the method to react on a possible `something` in the chain
+    Assertion.overwriteMethod(methodName, function (_super) {
+      return function somethingMethod() {
+        // Return if no `something` has been used in the chain
+        var somethingFlags = utils.flag(this, "something");
+        if (!somethingFlags)
+          return _super.apply(this, arguments);
+        // Use the nested `something` flag as the new `something` flag for this.
+        utils.flag(this, "something", utils.flag(somethingFlags, "something"));
+
+        // The assertion's object for `something` should be array-like
+        var arrayObject = utils.flag(this, "object");
+        expect(arrayObject).to.have.property("length");
+        var length = arrayObject.length;
+        expect(length).to.be.a("number", "something object length");
+
+        // In the negative case, an empty array means success
+        var negate = utils.flag(somethingFlags, "negate");
+        if (negate &amp;&amp; ...</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocFooterDiv">
+    [ this document was created with
+    <a href="https://github.com/kaizhu256/node-utility2" target="_blank">utility2</a>
+    ]
+</div>
+</div>
+</body></html>
